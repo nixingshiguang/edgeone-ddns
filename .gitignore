@@ -4,5 +4,5 @@ test_*
 .idea/
 .vscode/
 __pycache__/
-log/
+logs/
 config.json

@@ -65,3 +65,6 @@ docs/
 # Temporary files
 *.tmp
 *.temp
+
+# config file
+config.json

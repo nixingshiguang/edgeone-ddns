@@ -9,7 +9,7 @@ services:
     ports:
       - "4646:4646"
     volumes:
-      - ./config.json:/app/config.json:ro
+      # - ./config.json:/app/config.json:ro
       - ./logs:/app/logs
     restart: unless-stopped
     environment:
