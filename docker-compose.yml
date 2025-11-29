@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  edgeone-ddns:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: edgeone-ddns
+    ports:
+      - "4646:4646"
+    volumes:
+      - ./config.json:/app/config.json:ro
+      - ./logs:/app/logs
+    restart: unless-stopped
+    environment:
+      - PYTHONUNBUFFERED=1
+      - TZ=Asia/Shanghai
+    networks:
+      - ddns-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4646/api/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  ddns-network:
+    driver: bridge

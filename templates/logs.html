@@ -1,0 +1,285 @@
+{% extends "base.html" %}
+
+{% block title %}系统日志 - EdgeOne DDNS{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1><i class="bi bi-file-text"></i> 系统日志</h1>
+            <div>
+                <button class="btn btn-outline-secondary" onclick="refreshLogs()">
+                    <i class="bi bi-arrow-clockwise"></i> 刷新
+                </button>
+                <button class="btn btn-outline-primary" onclick="clearLogs()">
+                    <i class="bi bi-trash"></i> 清空日志
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 日志过滤器 -->
+<div class="row mb-3">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <label for="logLevel" class="form-label">日志级别</label>
+                        <select class="form-select" id="logLevel" onchange="filterLogs()">
+                            <option value="">全部</option>
+                            <option value="info">INFO</option>
+                            <option value="warning">WARNING</option>
+                            <option value="error">ERROR</option>
+                            <option value="debug">DEBUG</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="searchKeyword" class="form-label">搜索关键词</label>
+                        <input type="text" class="form-control" id="searchKeyword" 
+                               placeholder="输入关键词搜索" onkeyup="filterLogs()">
+                    </div>
+                    <div class="col-md-4">
+                        <label for="pageSize" class="form-label">显示条数</label>
+                        <select class="form-select" id="pageSize" onchange="filterLogs()">
+                            <option value="50">50条</option>
+                            <option value="100">100条</option>
+                            <option value="200">200条</option>
+                            <option value="">全部</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 日志内容 -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-journal-text"></i> 
+                    日志记录 
+                    <small class="text-muted">({{ logs | length }} 条)</small>
+                </h5>
+            </div>
+            <div class="card-body p-0">
+                {% if logs %}
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover mb-0" id="logsTable">
+                            <thead class="table-light">
+                                <tr>
+                                    <th width="180">时间</th>
+                                    <th width="100">级别</th>
+                                    <th>消息</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for log in logs %}
+                                <tr data-level="{{ log.level }}" data-message="{{ log.message }}">
+                                    <td><small>{{ log.timestamp | format_time }}</small></td>
+                                    <td>
+                                        <span class="badge bg-{{ log.level | level_color }} text-uppercase">
+                                            {{ log.level }}
+                                        </span>
+                                    </td>
+                                    <td>{{ log.message }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="bi bi-inbox text-muted" style="font-size: 3rem;"></i>
+                        <p class="text-muted mt-3">暂无日志记录</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 日志详情模态框 -->
+<div class="modal fade" id="logDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">日志详情</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="logDetailContent"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let allLogs = {{ logs | tojson }};
+
+// 过滤日志
+function filterLogs() {
+    const level = document.getElementById('logLevel').value.toLowerCase();
+    const keyword = document.getElementById('searchKeyword').value.toLowerCase();
+    const pageSize = document.getElementById('pageSize').value;
+    
+    let filteredLogs = allLogs;
+    
+    // 按级别过滤
+    if (level) {
+        filteredLogs = filteredLogs.filter(log => log.level.toLowerCase() === level);
+    }
+    
+    // 按关键词过滤
+    if (keyword) {
+        filteredLogs = filteredLogs.filter(log => 
+            log.message.toLowerCase().includes(keyword)
+        );
+    }
+    
+    // 限制条数
+    if (pageSize) {
+        filteredLogs = filteredLogs.slice(0, parseInt(pageSize));
+    }
+    
+    // 重新渲染表格
+    renderLogsTable(filteredLogs);
+}
+
+// 渲染日志表格
+function renderLogsTable(logs) {
+    const tbody = document.querySelector('#logsTable tbody');
+    
+    if (logs.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="3" class="text-center py-5">
+                    <i class="bi bi-search text-muted" style="font-size: 2rem;"></i>
+                    <p class="text-muted mt-2">没有找到匹配的日志记录</p>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    tbody.innerHTML = logs.map(log => `
+        <tr data-level="${log.level}" data-message="${log.message}" 
+            onclick="showLogDetail('${log.timestamp}', '${log.level}', '${log.message.replace(/'/g, "\\'")}')"
+            style="cursor: pointer;">
+            <td><small>${formatTime(log.timestamp)}</small></td>
+            <td>
+                <span class="badge bg-${getLevelColor(log.level)} text-uppercase">
+                    ${log.level}
+                </span>
+            </td>
+            <td>${log.message}</td>
+        </tr>
+    `).join('');
+}
+
+// 显示日志详情
+function showLogDetail(timestamp, level, message) {
+    document.getElementById('logDetailContent').innerHTML = `
+        <div class="row">
+            <div class="col-md-3"><strong>时间:</strong></div>
+            <div class="col-md-9">${formatTime(timestamp)}</div>
+        </div>
+        <div class="row mt-2">
+            <div class="col-md-3"><strong>级别:</strong></div>
+            <div class="col-md-9">
+                <span class="badge bg-${getLevelColor(level)} text-uppercase">${level}</span>
+            </div>
+        </div>
+        <div class="row mt-2">
+            <div class="col-md-3"><strong>消息:</strong></div>
+            <div class="col-md-9">${message}</div>
+        </div>
+    `;
+    new bootstrap.Modal(document.getElementById('logDetailModal')).show();
+}
+
+// 刷新日志
+function refreshLogs() {
+    location.reload();
+}
+
+// 清空日志
+function clearLogs() {
+    if (confirm('确定要清空所有日志记录吗？此操作不可恢复。')) {
+        fetch('/api/logs/clear', {
+            method: 'DELETE'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showMessage('日志已清空', 'success');
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                showMessage('清空失败: ' + (data.error || '未知错误'), 'danger');
+            }
+        })
+        .catch(error => {
+            showMessage('请求失败: ' + error.message, 'danger');
+        });
+    }
+}
+
+// 格式化时间
+function formatTime(timestamp) {
+    if (!timestamp) return '';
+    const date = new Date(timestamp);
+    return date.toLocaleString('zh-CN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+    });
+}
+
+// 获取级别颜色
+function getLevelColor(level) {
+    const colors = {
+        'info': 'info',
+        'warning': 'warning',
+        'error': 'danger',
+        'debug': 'secondary'
+    };
+    return colors[level.toLowerCase()] || 'secondary';
+}
+
+// 显示消息
+function showMessage(message, type) {
+    const alertHtml = `
+        <div class="alert alert-${type} alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x mt-3" 
+             style="z-index: 9999; min-width: 300px;" role="alert">
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', alertHtml);
+    
+    // 3秒后自动消失
+    setTimeout(() => {
+        const alert = document.querySelector('.alert:last-of-type');
+        if (alert) alert.remove();
+    }, 3000);
+}
+
+// 页面加载完成后初始化
+document.addEventListener('DOMContentLoaded', function() {
+    // 初始渲染
+    filterLogs();
+});
+</script>
+{% endblock %}

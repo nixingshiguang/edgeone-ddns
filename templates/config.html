@@ -1,0 +1,893 @@
+{% extends "base.html" %} {% block title %}配置管理 - EdgeOne DDNS{% endblock %}
+{% block content %}
+<div class="row">
+  <div class="col-12">
+    <h1><i class="bi bi-gear"></i> 配置管理</h1>
+    <p class="text-muted">配置腾讯云EdgeOne API参数和管理设置</p>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-lg-8">
+    <div class="card">
+      <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-pencil-square"></i> 基础配置</h5>
+      </div>
+      <div class="card-body">
+        <form id="configForm">
+          <!-- 腾讯云配置 -->
+          <div class="mb-4">
+            <h6 class="text-primary">腾讯云EdgeOne配置</h6>
+            <div class="mb-3">
+              <label for="secretId" class="form-label">Secret ID *</label>
+              <input
+                type="text"
+                class="form-control"
+                id="secretId"
+                name="secret_id"
+                value="{{ config.secret_id }}"
+                required
+              />
+              <div class="form-text">腾讯云访问管理API的Secret ID</div>
+            </div>
+            <div class="mb-3">
+              <label for="secretKey" class="form-label">Secret Key *</label>
+              <input
+                type="password"
+                class="form-control"
+                id="secretKey"
+                name="secret_key"
+                value="{{ config.secret_key }}"
+                required
+              />
+              <div class="form-text">腾讯云访问管理API的Secret Key</div>
+            </div>
+            <div class="mb-3">
+              <label for="zoneId" class="form-label">站点ID *</label>
+              <input
+                type="text"
+                class="form-control"
+                id="zoneId"
+                name="zone_id"
+                value="{{ config.zone_id }}"
+                required
+              />
+              <div class="form-text">EdgeOne站点ID，格式如: zone-xxxxxxxx</div>
+            </div>
+          </div>
+
+          <!-- IP类型配置 -->
+          <div class="mb-4">
+            <h6 class="text-primary">IP类型配置</h6>
+            <div class="mb-3">
+              <label class="form-label">选择要动态解析的IP类型</label>
+              <div class="form-check">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  id="ipv4Enabled"
+                  name="ipv4_enabled"
+                  {%
+                  if
+                  config.ipv4_enabled
+                  %}checked{%
+                  endif
+                  %}
+                />
+                <label class="form-check-label" for="ipv4Enabled">
+                  <i class="bi bi-globe"></i> IPv4 动态解析
+                </label>
+                <div class="form-text">启用IPv4地址的动态域名解析（A记录）</div>
+              </div>
+              <div class="form-check mt-2">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  id="ipv6Enabled"
+                  name="ipv6_enabled"
+                  {%
+                  if
+                  config.ipv6_enabled
+                  %}checked{%
+                  endif
+                  %}
+                />
+                <label class="form-check-label" for="ipv6Enabled">
+                  <i class="bi bi-hdd-network"></i> IPv6 动态解析
+                </label>
+                <div class="form-text">
+                  启用IPv6地址的动态域名解析（AAAA记录）
+                </div>
+              </div>
+              <div class="alert alert-info mt-2 small">
+                <i class="bi bi-info-circle"></i>
+                可以选择启用IPv4、IPv6或同时启用。如果同时不选择，系统将不执行DDNS任务。
+              </div>
+            </div>
+          </div>
+
+          <!-- 域名管理 -->
+          <div class="mb-4">
+            <h6 class="text-primary">域名管理</h6>
+
+            <!-- IPv4域名 -->
+            <div class="mb-3">
+              <label for="ipv4Domains" class="form-label">
+                <i class="bi bi-globe"></i> IPv4域名列表
+                <span class="badge bg-primary ms-1"
+                  >{{ config.ipv4_domains | length }} 个</span
+                >
+              </label>
+              <textarea
+                class="form-control"
+                id="ipv4Domains"
+                name="ipv4_domains"
+                rows="4"
+                placeholder="example.com&#10;www.example.com&#10;api.example.com"
+              >
+{% for domain in config.ipv4_domains %}{{ domain }}
+{% endfor %}</textarea
+              >
+              <div class="form-text">
+                一行一个域名，用于IPv4地址解析（A记录）。如果未填写，将使用旧的域名配置。
+              </div>
+            </div>
+
+            <!-- IPv6域名 -->
+            <div class="mb-3">
+              <label for="ipv6Domains" class="form-label">
+                <i class="bi bi-hdd-network"></i> IPv6域名列表
+                <span class="badge bg-primary ms-1"
+                  >{{ config.ipv6_domains | length }} 个</span
+                >
+              </label>
+              <textarea
+                class="form-control"
+                id="ipv6Domains"
+                name="ipv6_domains"
+                rows="4"
+                placeholder="example.com&#10;www.example.com&#10;api.example.com"
+              >
+{% for domain in config.ipv6_domains %}{{ domain }}
+{% endfor %}</textarea
+              >
+              <div class="form-text">
+                一行一个域名，用于IPv6地址解析（AAAA记录）。
+              </div>
+            </div>
+
+            <!-- 说明信息 -->
+            <div class="alert alert-info">
+              <i class="bi bi-info-circle"></i>
+              <strong>使用说明：</strong>
+              <ul class="mb-0 mt-2">
+                <li>IPv4域名用于A记录解析，IPv6域名用于AAAA记录解析</li>
+                <li>两个列表可以填写相同的域名，实现双栈解析</li>
+                <li>如果留空IPv6域名列表，将不会为IPv6创建DNS记录</li>
+                <li>支持泛域名，如 *.example.com</li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- Webhook通知配置 -->
+          <div class="mb-4">
+            <h6 class="text-primary">自定义Webhook通知</h6>
+
+            <!-- 启用开关 -->
+            <div class="mb-3">
+              <div class="form-check form-switch">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  id="webhookEnabled"
+                  name="webhook_enabled"
+                  {%
+                  if
+                  config.webhook_enabled
+                  %}checked{%
+                  endif
+                  %}
+                />
+                <label class="form-check-label" for="webhookEnabled">
+                  <i class="bi bi-bell"></i> 启用Webhook通知
+                </label>
+                <div class="form-text">启用后将通过自定义Webhook发送通知</div>
+              </div>
+            </div>
+
+            <!-- Webhook URL -->
+            <div class="mb-3">
+              <label for="webhookUrl" class="form-label">Webhook URL *</label>
+              <input
+                type="url"
+                class="form-control"
+                id="webhookUrl"
+                name="webhook_url"
+                value="{{ config.webhook_url }}"
+                placeholder="https://hooks.slack.com/xxx 或 https://oapi.dingtalk.com/robot/send?access_token=xxx"
+              />
+              <div class="form-text">
+                支持钉钉、Slack、Discord等任意Webhook服务
+              </div>
+            </div>
+
+            <!-- 请求头配置 -->
+            <div class="mb-3">
+              <label for="webhookHeaders" class="form-label"
+                >请求头 (JSON格式)</label
+              >
+              <textarea
+                class="form-control font-monospace"
+                id="webhookHeaders"
+                name="webhook_headers"
+                rows="3"
+              >
+{{ config.webhook_headers | default('{}') }}</textarea
+              >
+              <div class="form-text">
+                可选。自定义HTTP请求头，JSON格式。例如：<br />
+                <code
+                  >{"Authorization": "Bearer token123", "Content-Type":
+                  "application/json"}</code
+                >
+              </div>
+            </div>
+
+            <!-- 请求体配置 -->
+            <div class="mb-3">
+              <label for="webhookBody" class="form-label"
+                >请求体模板 (JSON格式)</label
+              >
+              <textarea
+                class="form-control font-monospace"
+                id="webhookBody"
+                name="webhook_body_template"
+                rows="8"
+              >
+{{ config.webhook_body_template | default('{}') }}</textarea
+              >
+              <div class="form-text">
+                可用的变量占位符：<br />
+                <code>${timestamp}</code> - 当前时间<br />
+                <code>${title}</code> - 通知标题<br />
+                <code>${message}</code> - 通知内容<br />
+                <code>${domain}</code> - 域名<br />
+                <code>${new_ip}</code> - 新IP地址<br />
+                <code>${old_ip}</code> - 原IP地址<br />
+                <code>${action}</code> - 操作类型<br />
+                <code>${type}</code> - 通知类型<br />
+                <small class="text-muted">更多变量请参考文档</small>
+              </div>
+            </div>
+
+            <!-- 预设模板 -->
+            <div class="mb-3">
+              <label class="form-label">快速模板</label>
+              <div class="btn-group" role="group">
+                <button
+                  type="button"
+                  class="btn btn-outline-primary btn-sm"
+                  onclick="loadTemplate('dingtalk')"
+                >
+                  钉钉机器人
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-outline-primary btn-sm"
+                  onclick="loadTemplate('slack')"
+                >
+                  Slack
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-outline-primary btn-sm"
+                  onclick="loadTemplate('discord')"
+                >
+                  Discord
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-outline-success btn-sm"
+                  onclick="loadTemplate('wechat')"
+                >
+                  企业微信
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-outline-success btn-sm"
+                  onclick="loadTemplate('wechat_markdown')"
+                >
+                  企业微信(MD)
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-outline-primary btn-sm"
+                  onclick="loadTemplate('generic')"
+                >
+                  通用JSON
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 高级配置 -->
+          <div class="mb-4">
+            <h6 class="text-primary">高级配置</h6>
+            <div class="mb-3">
+              <label for="updateInterval" class="form-label">检查间隔</label>
+              <div class="row align-items-center">
+                <div class="col-md-8">
+                  <input
+                    type="range"
+                    class="form-range"
+                    id="updateInterval"
+                    name="update_interval"
+                    min="60"
+                    max="3600"
+                    step="60"
+                    value="{{ config.update_interval }}"
+                  />
+                </div>
+                <div class="col-md-4">
+                  <span id="intervalDisplay"
+                    >{{ config.update_interval // 60 }} 分钟</span
+                  >
+                </div>
+              </div>
+              <div class="form-text">IP检查和DNS更新的间隔时间</div>
+            </div>
+          </div>
+
+          <!-- 操作按钮 -->
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary">
+              <i class="bi bi-save"></i> 保存配置
+            </button>
+            <button
+              type="button"
+              class="btn btn-outline-secondary"
+              onclick="testConfig()"
+            >
+              <i class="bi bi-plug"></i> 测试连接
+            </button>
+            <button
+              type="button"
+              class="btn btn-outline-info"
+              onclick="testNotification()"
+            >
+              <i class="bi bi-bell"></i> 测试通知
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- 侧边栏信息 -->
+  <div class="col-lg-4">
+    <!-- 配置状态 -->
+    <div class="card mb-3">
+      <div class="card-header">
+        <h6 class="mb-0"><i class="bi bi-info-circle"></i> 配置状态</h6>
+      </div>
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <span>配置完整性:</span>
+          <span
+            id="configStatus"
+            class="badge bg-{{ 'success' if config.secret_id and config.secret_key and config.zone_id else 'warning' }}"
+          >
+            {{ '完整' if config.secret_id and config.secret_key and
+            config.zone_id else '不完整' }}
+          </span>
+        </div>
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <span>IPv4域名:</span>
+          <span class="badge bg-primary"
+            >{{ config.ipv4_domains | length }} 个</span
+          >
+        </div>
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <span>IPv6域名:</span>
+          <span class="badge bg-primary"
+            >{{ config.ipv6_domains | length }} 个</span
+          >
+        </div>
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <span>总域名数:</span>
+          <span class="badge bg-info"
+            >{{ (config.ipv4_domains | length + config.ipv6_domains | length) }}
+            个</span
+          >
+        </div>
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <span>Webhook通知:</span>
+          <span
+            class="badge bg-{{ 'success' if config.webhook_enabled and config.webhook_url else 'secondary' }}"
+          >
+            {{ '已启用' if config.webhook_enabled and config.webhook_url else
+            '未启用' }}
+          </span>
+        </div>
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <span>IPv4解析:</span>
+          <span
+            class="badge bg-{{ 'success' if config.ipv4_enabled else 'secondary' }}"
+          >
+            {{ '启用' if config.ipv4_enabled else '禁用' }}
+          </span>
+        </div>
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <span>IPv6解析:</span>
+          <span
+            class="badge bg-{{ 'success' if config.ipv6_enabled else 'secondary' }}"
+          >
+            {{ '启用' if config.ipv6_enabled else '禁用' }}
+          </span>
+        </div>
+        <div class="d-flex justify-content-between align-items-center">
+          <span>DDNS任务:</span>
+          <span
+            class="badge bg-{{ 'warning' if not (config.ipv4_enabled or config.ipv6_enabled) else 'info' }}"
+          >
+            {{ '已禁用' if not (config.ipv4_enabled or config.ipv6_enabled) else
+            '已启用' }}
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 使用说明 -->
+    <div class="card mb-3">
+      <div class="card-header">
+        <h6 class="mb-0"><i class="bi bi-question-circle"></i> 使用说明</h6>
+      </div>
+      <div class="card-body">
+        <ol class="small">
+          <li>在腾讯云访问管理中创建API密钥</li>
+          <li>确保密钥具有EdgeOne DNS权限</li>
+          <li>在EdgeOne控制台获取站点ID</li>
+          <li>添加需要动态解析的域名</li>
+          <li>配置企业微信机器人（可选）</li>
+          <li>测试连接并保存配置</li>
+        </ol>
+      </div>
+    </div>
+
+    <!-- 权限要求 -->
+    <div class="card">
+      <div class="card-header">
+        <h6 class="mb-0"><i class="bi bi-shield-check"></i> 权限要求</h6>
+      </div>
+      <div class="card-body">
+        <small>
+          <p class="mb-1">API密钥需要以下权限:</p>
+          <ul class="mb-0">
+            <li>EdgeOne DNS记录查询</li>
+            <li>EdgeOne DNS记录创建/修改</li>
+            <li>EdgeOne DNS记录删除</li>
+          </ul>
+        </small>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 消息模态框 -->
+<div class="modal fade" id="messageModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">操作结果</h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+        ></button>
+      </div>
+      <div class="modal-body">
+        <div id="modalMessage"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          关闭
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %} {% block scripts %}
+<script>
+  // 更新间隔显示
+  document
+    .getElementById("updateInterval")
+    .addEventListener("input", function () {
+      const minutes = Math.floor(this.value / 60);
+      document.getElementById("intervalDisplay").textContent =
+        minutes + " 分钟";
+    });
+
+  // 保存配置
+  document
+    .getElementById("configForm")
+    .addEventListener("submit", function (e) {
+      e.preventDefault();
+
+      const formData = new FormData(this);
+      // 获取IP类型选择状态
+      const ipv4Enabled = formData.has("ipv4_enabled");
+      const ipv6Enabled = formData.has("ipv6_enabled");
+
+      // 处理secret_key：如果值是掩码（全是*），则不要提交它
+      let secretKey = formData.get("secret_key");
+      if (secretKey && secretKey.startsWith("*")) {
+        secretKey = ""; // 设为空值，让后端保留原有值
+      }
+      
+      const data = {
+        secret_id: formData.get("secret_id"),
+        secret_key: secretKey,
+        zone_id: formData.get("zone_id"),
+        webhook_enabled: formData.has("webhook_enabled"),
+        webhook_url: formData.get("webhook_url"),
+        webhook_headers: formData.get("webhook_headers"),
+        webhook_body_template: formData.get("webhook_body_template"),
+        update_interval: parseInt(formData.get("update_interval")),
+        ipv4_enabled: ipv4Enabled,
+        ipv6_enabled: ipv6Enabled,
+        ipv4_domains: formData
+          .get("ipv4_domains")
+          .split("\n")
+          .map((domain) => domain.trim())
+          .filter((domain) => domain.length > 0),
+        ipv6_domains: formData
+          .get("ipv6_domains")
+          .split("\n")
+          .map((domain) => domain.trim())
+          .filter((domain) => domain.length > 0),
+      };
+
+      showLoading("正在保存配置...");
+
+      fetch("/api/config", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          hideLoading();
+          if (data.success) {
+            showMessage(
+              "配置保存成功！服务将自动重启以应用新配置。",
+              "success"
+            );
+            setTimeout(() => (location.href = "/"), 2000);
+          } else {
+            showMessage(data.error || "保存失败", "danger");
+          }
+        })
+        .catch((error) => {
+          hideLoading();
+          showMessage("请求失败: " + error.message, "danger");
+        });
+    });
+
+  // 测试配置
+  function testConfig() {
+    const secretId = document.getElementById("secretId").value;
+    let secretKey = document.getElementById("secretKey").value;
+    const zoneId = document.getElementById("zoneId").value;
+
+    // 处理secret_key掩码：如果是掩码值，则为空（后端会使用原值）
+    if (secretKey && secretKey.startsWith("*")) {
+      secretKey = "";
+    }
+
+    if (!secretId || !zoneId) {
+      showMessage("请先填写Secret ID和Zone ID", "warning");
+      return;
+    }
+
+    showLoading("正在测试连接...");
+
+    // 临时保存当前配置进行测试
+    const tempConfig = {
+      secret_id: secretId,
+      secret_key: secretKey,
+      zone_id: zoneId,
+    };
+
+    fetch("/api/test_connectivity", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(tempConfig),
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        hideLoading();
+        showConnectivityResult(data);
+      })
+      .catch((error) => {
+        hideLoading();
+        showMessage("连接测试失败: " + error.message, "danger");
+      });
+  }
+
+  // 测试通知
+  function testNotification() {
+    const webhookEnabled = document.getElementById("webhookEnabled").checked;
+    const webhookUrl = document.getElementById("webhookUrl").value;
+    const webhookHeaders = document.getElementById("webhookHeaders").value;
+    const webhookBody = document.getElementById("webhookBody").value;
+
+    if (!webhookEnabled) {
+      showMessage("请先启用Webhook通知", "warning");
+      return;
+    }
+
+    if (!webhookUrl) {
+      showMessage("请先填写Webhook URL", "warning");
+      return;
+    }
+
+    // 验证JSON格式
+    try {
+      if (webhookHeaders) JSON.parse(webhookHeaders);
+      if (webhookBody) JSON.parse(webhookBody);
+    } catch (e) {
+      showMessage("请求头或请求体的JSON格式不正确: " + e.message, "danger");
+      return;
+    }
+
+    showLoading("正在发送测试通知...");
+
+    fetch("/api/test_notification", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        webhook_url: webhookUrl,
+        webhook_headers: webhookHeaders,
+        webhook_body_template: webhookBody,
+      }),
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        hideLoading();
+        if (data.success) {
+          showMessage("测试通知发送成功！", "success");
+        } else {
+          showMessage(data.error || "测试失败", "danger");
+        }
+      })
+      .catch((error) => {
+        hideLoading();
+        showMessage("请求失败: " + error.message, "danger");
+      });
+  }
+
+  // 显示连接测试结果
+  function showConnectivityResult(data) {
+    let content = "<h6>连接测试结果</h6>";
+
+    if (data.results) {
+      for (let key in data.results) {
+        const result = data.results[key];
+        const statusIcon = result.success ? "✅" : "❌";
+        const statusClass = result.success ? "success" : "danger";
+        content += `<div class="alert alert-${statusClass} mb-2">
+                <strong>${key}:</strong> ${statusIcon} ${result.value}
+            </div>`;
+      }
+    } else {
+      content = `<div class="alert alert-danger">${
+        data.message || "测试失败"
+      }</div>`;
+    }
+
+    document.getElementById("modalMessage").innerHTML = content;
+    new bootstrap.Modal(document.getElementById("messageModal")).show();
+  }
+
+  // 显示消息
+  function showMessage(message, type) {
+    document.getElementById("modalMessage").innerHTML = `
+        <div class="alert alert-${type}">${message}</div>
+    `;
+    new bootstrap.Modal(document.getElementById("messageModal")).show();
+  }
+
+  // 显示加载状态
+  function showLoading(message = "正在处理，请稍候...") {
+    document.getElementById("modalMessage").innerHTML = `
+        <div class="text-center">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">${message}</p>
+        </div>
+    `;
+    new bootstrap.Modal(document.getElementById("messageModal")).show();
+  }
+
+  // 隐藏加载状态
+  function hideLoading() {
+    const modal = bootstrap.Modal.getInstance(
+      document.getElementById("messageModal")
+    );
+    if (modal) modal.hide();
+  }
+
+  // Webhook模板定义
+  const webhookTemplates = {
+    dingtalk: {
+      headers: JSON.stringify(
+        {
+          "Content-Type": "application/json",
+        },
+        null,
+        2
+      ),
+      body: JSON.stringify(
+        {
+          msgtype: "text",
+          text: {
+            content: "EdgeOne DDNS\n${title}\n${message}\n时间: ${timestamp}",
+          },
+        },
+        null,
+        2
+      ),
+    },
+    slack: {
+      headers: JSON.stringify(
+        {
+          "Content-Type": "application/json",
+        },
+        null,
+        2
+      ),
+      body: JSON.stringify(
+        {
+          text: "${title}",
+          blocks: [
+            {
+              type: "header",
+              text: {
+                type: "plain_text",
+                text: "${title}",
+              },
+            },
+            {
+              type: "section",
+              text: {
+                type: "mrkdwn",
+                text: "${message}",
+              },
+            },
+            {
+              type: "context",
+              elements: [
+                {
+                  type: "mrkdwn",
+                  text: "时间: ${timestamp}",
+                },
+              ],
+            },
+          ],
+        },
+        null,
+        2
+      ),
+    },
+    discord: {
+      headers: JSON.stringify(
+        {
+          "Content-Type": "application/json",
+        },
+        null,
+        2
+      ),
+      body: JSON.stringify(
+        {
+          username: "EdgeOne DDNS",
+          embeds: [
+            {
+              title: "${title}",
+              description: "${message}",
+              color: 5814783,
+              timestamp: "${timestamp_iso}",
+            },
+          ],
+        },
+        null,
+        2
+      ),
+    },
+    wechat: {
+      headers: JSON.stringify(
+        {
+          "Content-Type": "application/json",
+        },
+        null,
+        2
+      ),
+      body: JSON.stringify(
+        {
+          msgtype: "text",
+          text: {
+            content: "EdgeOne DDNS\n${title}\n${message}\n时间: ${timestamp}",
+          },
+        },
+        null,
+        2
+      ),
+    },
+    wechat_markdown: {
+      headers: JSON.stringify(
+        {
+          "Content-Type": "application/json",
+        },
+        null,
+        2
+      ),
+      body: JSON.stringify(
+        {
+          msgtype: "markdown",
+          markdown: {
+            content: "## ${title}\n\n${message}\n\n时间: ${timestamp}",
+          },
+        },
+        null,
+        2
+      ),
+    },
+    generic: {
+      headers: JSON.stringify(
+        {
+          "Content-Type": "application/json",
+        },
+        null,
+        2
+      ),
+      body: JSON.stringify(
+        {
+          service: "EdgeOne DDNS",
+          type: "${type}",
+          title: "${title}",
+          message: "${message}",
+          timestamp: "${timestamp}",
+          data: {
+            domain: "${domain}",
+            new_ip: "${new_ip}",
+            old_ip: "${old_ip}",
+            action: "${action}",
+          },
+        },
+        null,
+        2
+      ),
+    },
+  };
+
+  // 加载模板
+  function loadTemplate(templateName) {
+    const template = webhookTemplates[templateName];
+    if (!template) {
+      showMessage("模板不存在", "warning");
+      return;
+    }
+
+    document.getElementById("webhookHeaders").value = template.headers;
+    document.getElementById("webhookBody").value = template.body;
+
+    showMessage(`已加载 ${templateName} 模板`, "success");
+  }
+</script>
+{% endblock %}

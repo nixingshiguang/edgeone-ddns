@@ -1,0 +1,8 @@
+debug_*
+test_*
+.venv/
+.idea/
+.vscode/
+__pycache__/
+log/
+config.json
