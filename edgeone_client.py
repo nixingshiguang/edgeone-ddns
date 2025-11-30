@@ -4,6 +4,7 @@
 基于官方SDK的EdgeOne客户端 - 最稳定可靠的实现
 """
 
+import os
 import json
 import logging
 from tencentcloud.common import credential
@@ -365,7 +366,8 @@ def test_sdk_client():
     
     # 读取配置
     try:
-        with open('config.json', 'r', encoding='utf-8') as f:
+        config_file = os.getenv('CONFIG_FILE_PATH', 'config.json')
+        with open(config_file, 'r', encoding='utf-8') as f:
             config = json.load(f)
             secret_id = config.get('secret_id', '')
             secret_key = config.get('secret_key', '')

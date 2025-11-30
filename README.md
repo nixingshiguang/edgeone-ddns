@@ -40,7 +40,8 @@ EdgeOne DDNS System
 │   ├── css/               # 样式文件
 │   └── js/                # JavaScript 文件
 ├── logs/                   # 日志文件目录
-├── config.json             # 配置文件
+├── config.json             # 配置文件（可选，Web界面可自动创建）
+├── docker-entrypoint.sh    # Docker 容器入口脚本
 ├── requirements.txt        # Python 依赖
 ├── Dockerfile             # Docker 容器配置
 ├── docker-compose.yml      # Docker Compose 配置
@@ -52,19 +53,32 @@ EdgeOne DDNS System
 ### 方式一：Docker Compose 部署（推荐）
 
 ```bash
-# 1. 克隆项目
-git clone https://github.com/your-username/ddns-for-edgeone.git
-cd ddns-for-edgeone
-
-# 2. 复制并编辑配置文件
-cp config.json.example config.json
-# 编辑 config.json 填入你的配置信息
-
-# 3. 启动服务
-docker-compose up -d
-
-# 4. 访问 Web 界面
-# 浏览器打开：http://localhost:4646
+services:
+  edgeone-ddns:
+    image: edgeone-ddns
+    container_name: nixingshiguang/edgeone-ddns
+    volumes:
+      - ddns-config:/app/config.json
+      - ddns-logs:/app/logs
+    environment:
+      - PYTHONUNBUFFERED=1
+      - TZ=Asia/Shanghai
+    network_mode: host #需要解析ipv6的必须使用host模式
+    healthcheck:
+      test:
+        - CMD
+        - curl
+        - -f
+        - http://localhost:4646/api/status
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+volumes:
+  ddns-config:
+    driver: local
+  ddns-logs:
+    driver: local
 ```
 
 ### 方式二：命令行部署脚本
@@ -89,17 +103,22 @@ chmod +x deploy.sh
 # 1. 构建镜像
 docker build -t edgeone-ddns .
 
-# 2. 创建必要目录
-mkdir -p logs
-
-# 3. 运行容器
+# 2. 运行容器（使用 Docker 托管卷）
 docker run -d \
   --name edgeone-ddns \
-  -p 4646:4646 \
-  -v $(pwd)/config.json:/app/config.json:ro \
-  -v $(pwd)/logs:/app/logs \
+  --network host \
+  -v ddns-config:/app/config \
+  -v ddns-logs:/app/logs \
   --restart unless-stopped \
   edgeone-ddns
+
+# 3. 访问 Web 界面进行配置
+# 浏览器打开：http://localhost:4646
+
+# 注意：
+# - 使用 Docker 托管卷自动管理配置和日志存储
+# - 配置文件通过 Web 界面创建和保存
+# - 无需手动挂载配置文件或担心权限问题
 ```
 
 ### 方式四：本地开发部署
@@ -133,6 +152,11 @@ python app.py
 4. 配置 IPv4/IPv6 设置和域名列表
 5. 设置自定义 Webhook 通知（可选）
 6. 保存配置并测试连接
+
+**重要提示**：
+- 🔧 **Docker 部署**：配置文件通过 Web 界面自动创建和保存
+- 🔧 **权限管理**：使用 Docker 托管卷和容器内权限管理，无需手动设置权限
+- 🔧 **数据持久化**：配置和日志数据通过 Docker 托管卷持久化存储
 
 ## ⚙️ 配置详解
 
@@ -168,41 +192,9 @@ python app.py
 ### API 密钥权限要求
 
 确保你的腾讯云 API 密钥具有以下 EdgeOne 权限：
-- `teo:DnsRecordQuery` - DNS记录查询权限
-- `teo:DnsRecordCreate` - DNS记录创建权限  
-- `teo:DnsRecordModify` - DNS记录修改权限
-- `teo:DnsRecordDelete` - DNS记录删除权限
+- 云解析 DNS 全读写访问权限
+- 边缘安全加速平台 EO 全读写访问权限边缘安全加速平台 EO 全读写访问权限
 
-### 配置示例
-
-```json
-{
-  "secret_id": "AKIDxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
-  "secret_key": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
-  "zone_id": "zone-xxxxxxxx",
-  "ipv4_enabled": true,
-  "ipv6_enabled": false,
-  "ipv4_domains": ["example.com", "www.example.com"],
-  "ipv6_domains": ["ipv6.example.com"],
-  "notification_enabled": true,
-  "webhook": {
-    "url": "https://oapi.dingtalk.com/robot/send?access_token=xxx",
-    "method": "POST",
-    "headers": {
-      "Content-Type": "application/json"
-    },
-    "body": {
-      "msgtype": "text",
-      "text": {
-        "content": "DDNS 更新: {ip_type} 地址已变更为 {new_ip}"
-      }
-    }
-  },
-  "check_interval": 300,
-  "timeout": 10,
-  "retry_count": 3
-}
-```
 
 ## 📱 Web 界面功能
 
@@ -292,6 +284,26 @@ GET    /api/detect_ip          # 手动检测当前公网IP
 - ✅ 如使用 Webhook 通知，需能访问对应服务
 - ✅ 防火墙允许 4646 端口出站（API调用）
 
+## 🐳 Docker 配置详解
+
+### 托管卷管理
+本项目使用 Docker 托管卷（Docker Managed Volumes）来管理配置和日志数据：
+
+```yaml
+volumes:
+  ddns-config:    # 配置数据存储
+    driver: local
+  ddns-logs:      # 日志数据存储  
+    driver: local
+```
+
+### 托管卷优势
+- 🔧 **自动权限管理**：容器启动时自动设置正确的文件权限
+- 🔄 **数据持久化**：容器重启或重新构建后数据不会丢失
+- 🛡️ **避免权限冲突**：不再出现"Is a directory"错误
+- 📁 **隔离存储**：数据和容器镜像分离，便于备份和迁移
+
+
 ## 🔒 安全最佳实践
 
 ### 1. API 密钥安全
@@ -308,8 +320,9 @@ export TENCENT_SECRET_KEY="your-secret-key"
 - 🔒 配置防火墙规则，仅允许必要IP访问
 
 ### 3. 容器安全
-- ✅ 使用非 root 用户运行（已默认配置）
-- ✅ 只读挂载配置文件 (`:ro`)
+- ✅ 使用非 root 用户运行（已默认配置，UID/GID: 999:999）
+- ✅ 使用 Docker 托管卷安全管理配置和日志存储
+- ✅ 容器启动时自动设置正确的文件权限
 - ✅ 定期更新基础镜像
 - ✅ 限制容器资源使用
 
@@ -333,8 +346,25 @@ docker ps -a | grep edgeone-ddns
 # 重新构建镜像（无缓存）
 docker-compose build --no-cache
 
-# 检查配置文件权限
-ls -la config.json
+# 检查 Docker 托管卷
+docker volume ls | grep ddns
+
+# 查看托管卷详细信息
+docker volume inspect ddns-config
+docker volume inspect ddns-logs
+```
+
+#### Docker 权限问题排查
+```bash
+# 如果遇到权限问题，重新创建托管卷
+docker-compose down
+docker volume rm ddns-config ddns-logs
+docker-compose up -d
+
+# 检查容器内权限
+docker exec -it edgeone-ddns ls -la /app/
+docker exec -it edgeone-ddns ls -la /app/config/
+docker exec -it edgeone-ddn ls -la /app/logs/
 ```
 
 #### 本地环境
@@ -451,7 +481,9 @@ grep "DNS记录更新成功" logs/ddns.log | wc -l
 - 🌍 **多源IP检测**: 内置 11 个 IP 检测服务，支持自定义端点
 - 🔄 **灵活配置**: 支持独立启用/禁用 IPv4 或 IPv6
 - 📱 **界面升级**: 基于 Bootstrap 5 的现代化界面
-- 🐳 **Docker优化**: 改进日志目录映射，优化容器配置
+- 🐳 **Docker优化**: 改进日志目录映射，使用 Docker 托管卷解决权限问题
+- 🔐 **权限管理**: 完善容器内文件权限管理，支持非 root 用户运行
+- 📁 **配置管理**: 优化配置文件处理，支持 Web 界面动态创建
 
 ### v1.0.0 (2024-10-01) - 初始版本
 - ✨ 基础 IPv4 DDNS 功能

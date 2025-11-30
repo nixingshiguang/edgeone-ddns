@@ -28,8 +28,16 @@ def setup_logging():
     
     # 创建日志目录
     log_dir = 'logs'
-    if not os.path.exists(log_dir):
-        os.makedirs(log_dir)
+    try:
+        if not os.path.exists(log_dir):
+            os.makedirs(log_dir)
+    except PermissionError:
+        log_dir = '/tmp/logs'  # 降级到临时目录
+        try:
+            if not os.path.exists(log_dir):
+                os.makedirs(log_dir)
+        except PermissionError:
+            log_dir = None  # 无法创建日志目录
     
     # 配置根日志记录器
     root_logger = logging.getLogger()
@@ -44,30 +52,36 @@ def setup_logging():
         '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     )
     
-    # 文件处理器（带轮转）
-    file_handler = logging.handlers.RotatingFileHandler(
-        os.path.join(log_dir, 'ddns.log'),
-        maxBytes=10*1024*1024,  # 10MB
-        backupCount=5,
-        encoding='utf-8'
-    )
-    file_handler.setFormatter(formatter)
-    file_handler.setLevel(logging.INFO)
+    # 尝试添加文件处理器
+    if log_dir:
+        try:
+            file_handler = logging.handlers.RotatingFileHandler(
+                os.path.join(log_dir, 'ddns.log'),
+                maxBytes=10*1024*1024,  # 10MB
+                backupCount=5,
+                encoding='utf-8'
+            )
+            file_handler.setFormatter(formatter)
+            file_handler.setLevel(logging.INFO)
+            root_logger.addHandler(file_handler)
+            log_file = os.path.join(log_dir, 'ddns.log')
+        except (PermissionError, OSError) as e:
+            logging.warning(f"无法创建日志文件，仅使用控制台输出: {e}")
     
-    # 控制台处理器
+    # 控制台处理器（始终添加）
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(formatter)
     console_handler.setLevel(logging.INFO)
-    
-    # 添加处理器
-    root_logger.addHandler(file_handler)
     root_logger.addHandler(console_handler)
     
     # 为Flask特定日志配置
     flask_logger = logging.getLogger('werkzeug')
     flask_logger.setLevel(logging.INFO)
     
-    logging.info("日志系统初始化完成")
+    if log_dir:
+        logging.info(f"日志系统初始化完成，日志文件: {os.path.join(log_dir, 'ddns.log')}")
+    else:
+        logging.info("日志系统初始化完成，仅输出到控制台")
 
 # 初始化日志
 setup_logging()

@@ -58,6 +58,9 @@ if curl -f http://localhost:4646/api/status &> /dev/null; then
     echo "📱 Web管理界面: http://localhost:4646"
     echo "📝 配置文件: config.json"
     echo "📋 查看日志: docker-compose logs -f edgeone-ddns"
+    echo ""
+    echo "ℹ️  网络模式: bridge with IPv6 support"
+    echo "ℹ️  容器已启用 IPv6 支持，能够正确检测和更新 IPv6 DNS 记录"
 else
     echo "❌ 服务启动失败，请检查日志:"
     docker-compose logs edgeone-ddns

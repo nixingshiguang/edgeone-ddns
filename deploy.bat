@@ -78,5 +78,8 @@ echo 📱 Web管理界面: http://localhost:4646
 echo 📝 配置文件: config.json
 echo 📋 查看日志: docker-compose logs -f edgeone-ddns
 echo.
+echo ℹ️  网络模式: bridge with IPv6 support
+echo ℹ️  容器已启用 IPv6 支持，能够正确检测和更新 IPv6 DNS 记录
+echo.
 echo 🎉 部署完成！请访问 http://localhost:4646 进行配置
 pause

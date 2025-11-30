@@ -1,29 +1,26 @@
-version: '3.8'
-
 services:
   edgeone-ddns:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: edgeone-ddns
-    ports:
-      - "4646:4646"
+    image: edgeone-ddns
+    container_name: nixingshiguang/edgeone-ddns
     volumes:
-      # - ./config.json:/app/config.json:ro
-      - ./logs:/app/logs
-    restart: unless-stopped
+      - ddns-config:/app/config.json
+      - ddns-logs:/app/logs
     environment:
       - PYTHONUNBUFFERED=1
       - TZ=Asia/Shanghai
-    networks:
-      - ddns-network
+    network_mode: host #需要解析ipv6的必须使用host模式
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:4646/api/status"]
+      test:
+        - CMD
+        - curl
+        - -f
+        - http://localhost:4646/api/status
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
-
-networks:
-  ddns-network:
-    driver: bridge
+volumes:
+  ddns-config:
+    driver: local
+  ddns-logs:
+    driver: local
