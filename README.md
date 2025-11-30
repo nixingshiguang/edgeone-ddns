@@ -55,8 +55,8 @@ EdgeOne DDNS System
 ```bash
 services:
   edgeone-ddns:
-    image: edgeone-ddns
-    container_name: nixingshiguang/edgeone-ddns
+    image: nixingshiguang/edgeone-ddns:latest
+    container_name: edgeone-ddns
     volumes:
       - ddns-config:/app/config.json
       - ddns-logs:/app/logs
