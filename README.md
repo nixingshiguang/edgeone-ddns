@@ -58,7 +58,7 @@ services:
     image: nixingshiguang/edgeone-ddns:latest
     container_name: edgeone-ddns
     volumes:
-      - ddns-config:/app/config.json
+      - ddns-config:/app/config
       - ddns-logs:/app/logs
     environment:
       - PYTHONUNBUFFERED=1

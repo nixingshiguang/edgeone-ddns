@@ -98,6 +98,38 @@ last_update_time = None
 current_ip = None
 scheduler_thread = None
 
+# 自动初始化定时任务（确保在模块加载时执行）
+def auto_init_scheduler():
+    """自动初始化定时任务"""
+    global scheduler_thread
+    
+    try:
+        # 加载配置
+        config.load()
+        
+        # 清除所有现有任务
+        schedule.clear()
+        
+        # 添加定时更新任务
+        schedule.every(config.update_interval).seconds.do(
+            lambda: dnsservice.check_and_update_ip()
+        )
+        
+        # 启动调度器线程
+        if not scheduler_thread or not scheduler_thread.is_alive():
+            scheduler_thread = threading.Thread(target=run_scheduler, daemon=True)
+            scheduler_thread.start()
+            logging.info("定时任务调度器已自动启动")
+        
+        # 启动DNSService
+        dnsservice.start()
+        
+    except Exception as e:
+        logging.error(f"自动初始化定时任务失败: {str(e)}")
+
+# 在模块加载时自动初始化
+# auto_init_scheduler()  # 将在所有函数定义后调用
+
 # 添加模板过滤器
 @app.template_filter('format_time')
 def format_time(timestamp):
@@ -347,15 +379,10 @@ def init_scheduler():
         scheduler_thread.start()
         logging.info("定时任务调度器已启动")
 
+# 在模块加载时自动初始化定时任务（确保所有函数都已定义）
+auto_init_scheduler()
+
 if __name__ == '__main__':
-    # 加载配置
-    config.load()
-    
-    # 初始化定时任务
-    init_scheduler()
-    
-    # 启动DNSService
-    dnsservice.start()
-    
+    # 注意：定时任务已在模块加载时自动初始化，这里不需要重复初始化
     # 启动Flask应用
     app.run(host='0.0.0.0', port=4646, debug=False, threaded=True)
